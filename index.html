@@ -21,7 +21,6 @@
             --shadow: rgba(0, 0, 0, 0.08);
         }
 
-        /* Dark Mode CSS Variables */
         [data-theme="dark"] {
             --bg: #000000;
             --card-bg: #1C1C1E;
@@ -53,7 +52,6 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Theme Toggle Button Top-Center */
         .theme-toggle-container {
             margin-bottom: 16px;
             display: flex;
@@ -204,7 +202,6 @@
         .btn-pause { background-color: var(--yellow-warm); color: #1C1C1E; }
         .btn-stop { background-color: var(--danger); color: white; }
 
-        /* Popup Modal Styles */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -264,7 +261,6 @@
 </head>
 <body>
 
-    <!-- Theme Toggle Positioned Top-Center -->
     <div class="theme-toggle-container">
         <button class="btn-theme-toggle" onclick="toggleTheme()" id="btn-theme">
             <span id="theme-icon">☀️</span>
@@ -284,8 +280,8 @@
             <div class="input-group">
                 <label for="input-time">เวลารวม:</label>
                 <div class="input-with-select">
-                    <input type="number" id="input-time" min="1" placeholder="ระบุเวลา" oninput="validateMinimum()">
-                    <select id="select-unit" onchange="validateMinimum()">
+                    <input type="number" id="input-time" min="1" placeholder="ระบุเวลา">
+                    <select id="select-unit">
                         <option value="sec">วินาที</option>
                         <option value="min" selected>นาที</option>
                         <option value="hr">ชั่วโมง</option>
@@ -294,8 +290,15 @@
             </div>
 
             <div class="input-group">
-                <label for="input-interval">เตือนย่อยทุกๆ (วินาที):</label>
-                <input type="number" id="input-interval" min="1" placeholder="ระบุวินาที">
+                <label for="input-interval">เตือนย่อยทุกๆ:</label>
+                <div class="input-with-select">
+                    <input type="number" id="input-interval" min="1" placeholder="ระบุเวลา">
+                    <select id="select-interval-unit">
+                        <option value="sec" selected>วินาที</option>
+                        <option value="min">นาที</option>
+                        <option value="hr">ชั่วโมง</option>
+                    </select>
+                </div>
             </div>
 
             <button class="btn-action btn-start" onclick="startTimer()">เริ่มจับเวลา</button>
@@ -326,7 +329,7 @@
         </div>
     </div>
 
-   <script>
+    <script>
         let timerInterval = null;
         let totalSeconds = 0;
         let currentSeconds = 0;
@@ -345,7 +348,6 @@
             attachRealtimeListeners();
         });
 
-        // 1. Theme Management (Dark / Light Mode)
         function toggleTheme() {
             currentTheme = currentTheme === 'light' ? 'dark' : 'light';
             applyTheme(currentTheme);
@@ -365,7 +367,6 @@
             }
         }
 
-        // 2. Real-time Event Listeners & Minimum Time Validation
         function calculateTotalSeconds() {
             const timeVal = parseFloat(document.getElementById('input-time').value) || 0;
             const unit = document.getElementById('select-unit').value;
@@ -375,33 +376,46 @@
             return 0;
         }
 
+        function calculateIntervalSeconds() {
+            const intervalVal = parseFloat(document.getElementById('input-interval').value) || 0;
+            const unit = document.getElementById('select-interval-unit').value;
+            if (unit === 'sec') return intervalVal;
+            if (unit === 'min') return intervalVal * 60;
+            if (unit === 'hr') return intervalVal * 3600;
+            return 0;
+        }
+
         function validateMinimum() {
             const timeVal = document.getElementById('input-time').value.trim();
             const secs = calculateTotalSeconds();
             const banner = document.getElementById('warning-banner');
 
-            // แสดงคำเตือนเฉพาะเมื่อมีการระบุตัวเลขและคำนวณแล้วได้มากกว่า 0 แต่น้อยกว่า 10 วินาที
             if (timeVal !== '' && secs > 0 && secs < 10) {
                 banner.style.display = 'block';
                 return false;
             } else {
-                // ซ่อนคำเตือนอัตโนมัติทันทีหากเวลา >= 10 วินาที หรือช่องว่างเปล่า
                 banner.style.display = 'none';
                 return true;
             }
         }
 
+        // AUDIT FIX: ผูก Event Listener ให้ครอบคลุมทุก Input/Select ทั้งสองช่อง
         function attachRealtimeListeners() {
-            const inputTime = document.getElementById('input-time');
-            const selectUnit = document.getElementById('select-unit');
+            const inputs = [
+                document.getElementById('input-time'),
+                document.getElementById('select-unit'),
+                document.getElementById('input-interval'),
+                document.getElementById('select-interval-unit')
+            ];
 
-            // ดักจับการพิมพ์ เปลี่ยนแปลง หรือการกดลูกศรขึ้นลงในช่อง Input
-            inputTime.addEventListener('input', validateMinimum);
-            inputTime.addEventListener('change', validateMinimum);
-            selectUnit.addEventListener('change', validateMinimum);
+            inputs.forEach(el => {
+                if (el) {
+                    el.addEventListener('input', validateMinimum);
+                    el.addEventListener('change', validateMinimum);
+                }
+            });
         }
 
-        // 3. Voice Engine Initialization
         function initVoice() {
             const updateVoices = () => {
                 const voices = window.speechSynthesis.getVoices();
@@ -415,7 +429,6 @@
             }
         }
 
-        // 4. iOS Audio Unlocking
         function unlockIOSAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -436,7 +449,6 @@
             window.speechSynthesis.speak(silentUtterance);
         }
 
-        // 5. Sound Effects
         function playBeep() {
             if (!audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -495,11 +507,11 @@
             window.speechSynthesis.speak(utterance);
         }
 
-        // 6. LocalStorage Persistence
-        function saveSettings(timeVal, unitVal, intervalVal) {
+        function saveSettings(timeVal, unitVal, intervalVal, intervalUnitVal) {
             localStorage.setItem('timer_value', timeVal);
             localStorage.setItem('timer_unit', unitVal);
             localStorage.setItem('timer_interval', intervalVal);
+            localStorage.setItem('timer_interval_unit', intervalUnitVal);
         }
 
         function loadSavedSettings() {
@@ -510,16 +522,19 @@
             const savedTime = localStorage.getItem('timer_value');
             const savedUnit = localStorage.getItem('timer_unit');
             const savedInterval = localStorage.getItem('timer_interval');
+            const savedIntervalUnit = localStorage.getItem('timer_interval_unit');
 
             if (savedTime && savedUnit && savedInterval) {
                 document.getElementById('input-time').value = savedTime;
                 document.getElementById('select-unit').value = savedUnit;
                 document.getElementById('input-interval').value = savedInterval;
+                if (savedIntervalUnit) {
+                    document.getElementById('select-interval-unit').value = savedIntervalUnit;
+                }
             }
             validateMinimum();
         }
 
-        // 7. Screen Wake Lock
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
@@ -543,7 +558,6 @@
             document.getElementById('round-text').innerText = `รอบที่ ${roundCount}`;
         }
 
-        // 8. Auto-Closing Popup Handler
         function showFinishModal(durationMs = 4000) {
             const modal = document.getElementById('finish-modal');
             const progress = document.getElementById('popup-progress');
@@ -562,14 +576,14 @@
             }, durationMs + 100);
         }
 
-        // 9. Main Controller Functions
         function startTimer() {
             const timeVal = document.getElementById('input-time').value;
             const unitVal = document.getElementById('select-unit').value;
             const intervalVal = document.getElementById('input-interval').value;
+            const intervalUnitVal = document.getElementById('select-interval-unit').value;
 
             totalSeconds = calculateTotalSeconds();
-            intervalLimit = parseInt(intervalVal);
+            intervalLimit = calculateIntervalSeconds();
 
             if (totalSeconds < 10) {
                 document.getElementById('warning-banner').style.display = 'block';
@@ -582,8 +596,14 @@
                 return;
             }
 
+            // AUDIT FIX: ตรวจสอบความถูกต้องทางตรรกะว่าช่วงเตือนย่อยต้องไม่ยาวกว่าเวลารวม
+            if (intervalLimit >= totalSeconds) {
+                alert("ช่วงเวลาเตือนย่อยต้องน้อยกว่าเวลารวมครับ");
+                return;
+            }
+
             unlockIOSAudio();
-            saveSettings(timeVal, unitVal, intervalVal);
+            saveSettings(timeVal, unitVal, intervalVal, intervalUnitVal);
 
             currentSeconds = totalSeconds;
             roundCount = 0;
@@ -624,7 +644,10 @@
                     updateDisplay();
                     playBeep();
                     setTimeout(() => {
-                        speakThai(`${intervalLimit} วินาที ครั้งที่ ${roundCount}`);
+                        const unitSelect = document.getElementById('select-interval-unit');
+                        const unitText = unitSelect.options[unitSelect.selectedIndex].text;
+                        const rawIntervalVal = document.getElementById('input-interval').value;
+                        speakThai(`${rawIntervalVal} ${unitText} ครั้งที่ ${roundCount}`);
                     }, 600);
                 }
 
