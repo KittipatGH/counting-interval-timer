@@ -183,7 +183,7 @@
         </div>
     </div>
 
-    <script>
+   <script>
         let timerInterval = null;
         let totalSeconds = 0;
         let currentSeconds = 0;
@@ -192,14 +192,103 @@
         let isPaused = false;
         let wakeLock = null;
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioCtx = null;
+        let thaiVoice = null;
 
-        // โหลดค่า Cookies/LocalStorage เมื่อเปิดหน้าเว็บขึ้นมา
+        // โหลดตั้งค่าเมื่อเริ่มต้น
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedSettings();
+            initVoice();
         });
 
-        // 1. จัดการ Cookies / LocalStorage
+        // 1. ระบบจัดการ Voice แบบ Cross-Platform (แก้ปัญหาเสียงแปลกบน Desktop/Linux)
+        function initVoice() {
+            const updateVoices = () => {
+                const voices = window.speechSynthesis.getVoices();
+                
+                // ค้นหาเสียงที่มี รหัสภาษา (lang) เป็น 'th' หรือ 'th-TH' ก่อน
+                thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang === 'th');
+
+                // หากไม่เจอ ให้ค้นหาจากชื่อ Engine ภาษาไทยยอดนิยมในแต่ละ OS
+                if (!thaiVoice) {
+                    thaiVoice = voices.find(v => 
+                        v.name.includes('Kanya') ||     // iOS / macOS
+                        v.name.includes('Pattara') ||   // Windows
+                        v.name.includes('Niwat') ||     // Windows
+                        v.name.includes('Thai')         // Chrome / Cross-platform
+                    );
+                }
+
+                // กรณีไม่เจอจริงๆ ให้หา Voice ที่เกี่ยวข้องกับภาษาไทย
+                if (!thaiVoice) {
+                    thaiVoice = voices.find(v => v.lang.toLowerCase().includes('th'));
+                }
+            };
+
+            updateVoices();
+            if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = updateVoices;
+            }
+        }
+
+        // 2. ปลดล็อกระบบเสียงสำหรับ iOS Safari
+        function unlockIOSAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // เล่นเสียงเงียบปลุก Web Audio
+            const buffer = audioCtx.createBuffer(1, 1, 22050);
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start(0);
+
+            // ปลดล็อก SpeechSynthesis ด้วยข้อความว่าง
+            window.speechSynthesis.cancel();
+            const silentUtterance = new SpeechSynthesisUtterance("");
+            silentUtterance.volume = 0;
+            window.speechSynthesis.speak(silentUtterance);
+        }
+
+        // 3. ระบบเสียงสัญญาณ Beep
+        function playBeep() {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // 4. ระบบออกเสียงพูดภาษาไทย
+        function speakThai(text) {
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (thaiVoice) utterance.voice = thaiVoice;
+            
+            utterance.lang = 'th-TH';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 5. ระบบ LocalStorage (จำค่าการใช้งานล่าสุด)
         function saveSettings(minutes, interval) {
             localStorage.setItem('timer_minutes', minutes);
             localStorage.setItem('timer_interval', interval);
@@ -208,44 +297,20 @@
         function loadSavedSettings() {
             const savedMins = localStorage.getItem('timer_minutes');
             const savedInterval = localStorage.getItem('timer_interval');
-
-            // ถ้าเคยบันทึกค่าไว้ ให้ใส่ค่าเดิมให้อัตโนมัติ หากไม่เคยเข้ามา จะปล่อยว่างตาม placeholder
             if (savedMins && savedInterval) {
                 document.getElementById('input-minutes').value = savedMins;
                 document.getElementById('input-interval').value = savedInterval;
             }
         }
 
-        // 2. ระบบเสียง Web Audio API
-        function playBeep() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-            gain.gain.setValueAtTime(1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.5);
-        }
-
-        function speakThai(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'th-TH';
-            utterance.rate = 1.0;
-            window.speechSynthesis.speak(utterance);
-        }
-
-        // 3. ป้องกันหน้าจอดับ (Screen Wake Lock)
+        // 6. ระบบป้องกันหน้าจอดับ (Screen Wake Lock)
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
                 }
-            } catch (err) {
-                console.log('Wake Lock Error:', err);
+            } catch (err) { 
+                console.log('Wake Lock Error:', err); 
             }
         }
 
@@ -262,7 +327,7 @@
             document.getElementById('round-text').innerText = `รอบที่ ${roundCount}`;
         }
 
-        // 4. การทำงานของสวิตช์เริ่ม / พัก / หยุด
+        // 7. การควบคุม Timer และ Event Handlers
         function startTimer() {
             const minsInput = document.getElementById('input-minutes').value;
             const intervalInput = document.getElementById('input-interval').value;
@@ -275,11 +340,8 @@
                 return;
             }
 
-            // บันทึกค่าลง Memory ไว้ใช้ครั้งถัดไป
+            unlockIOSAudio();
             saveSettings(minsInput, intervalInput);
-
-            playBeep();
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
             totalSeconds = mins * 60;
             currentSeconds = totalSeconds;
@@ -292,6 +354,8 @@
             
             updateDisplay();
             requestWakeLock();
+            playBeep();
+
             runTimerLoop();
         }
 
@@ -328,6 +392,7 @@
                 window.speechSynthesis.cancel();
             } else {
                 btn.innerText = "พักเวลา";
+                unlockIOSAudio();
                 playBeep();
             }
         }
