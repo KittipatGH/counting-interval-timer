@@ -191,7 +191,7 @@
         </div>
     </div>
 
-   <script>
+  <script>
         let timerInterval = null;
         let totalSeconds = 0;
         let currentSeconds = 0;
@@ -203,36 +203,19 @@
         let audioCtx = null;
         let thaiVoice = null;
 
-        // โหลดตั้งค่าเมื่อเริ่มต้น
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedSettings();
             initVoice();
         });
 
-        // 1. ระบบจัดการ Voice แบบ Cross-Platform (แก้ปัญหาเสียงแปลกบน Desktop/Linux)
+        // 1. ระบบจัดการ Voice แบบ Cross-Platform
         function initVoice() {
             const updateVoices = () => {
                 const voices = window.speechSynthesis.getVoices();
-                
-                // ค้นหาเสียงที่มี รหัสภาษา (lang) เป็น 'th' หรือ 'th-TH' ก่อน
-                thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang === 'th');
-
-                // หากไม่เจอ ให้ค้นหาจากชื่อ Engine ภาษาไทยยอดนิยมในแต่ละ OS
-                if (!thaiVoice) {
-                    thaiVoice = voices.find(v => 
-                        v.name.includes('Kanya') ||     // iOS / macOS
-                        v.name.includes('Pattara') ||   // Windows
-                        v.name.includes('Niwat') ||     // Windows
-                        v.name.includes('Thai')         // Chrome / Cross-platform
-                    );
-                }
-
-                // กรณีไม่เจอจริงๆ ให้หา Voice ที่เกี่ยวข้องกับภาษาไทย
-                if (!thaiVoice) {
-                    thaiVoice = voices.find(v => v.lang.toLowerCase().includes('th'));
-                }
+                thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang === 'th') ||
+                            voices.find(v => v.name.includes('Kanya') || v.name.includes('Pattara') || v.name.includes('Thai')) ||
+                            voices.find(v => v.lang.toLowerCase().includes('th'));
             };
-
             updateVoices();
             if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
                 speechSynthesis.onvoiceschanged = updateVoices;
@@ -248,21 +231,19 @@
                 audioCtx.resume();
             }
 
-            // เล่นเสียงเงียบปลุก Web Audio
             const buffer = audioCtx.createBuffer(1, 1, 22050);
             const source = audioCtx.createBufferSource();
             source.buffer = buffer;
             source.connect(audioCtx.destination);
             source.start(0);
 
-            // ปลดล็อก SpeechSynthesis ด้วยข้อความว่าง
             window.speechSynthesis.cancel();
             const silentUtterance = new SpeechSynthesisUtterance("");
             silentUtterance.volume = 0;
             window.speechSynthesis.speak(silentUtterance);
         }
 
-        // 3. ระบบเสียงสัญญาณ Beep
+        // 3. ระบบเสียงสัญญาณ Beep เตือนย่อย
         function playBeep() {
             if (!audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -273,7 +254,7 @@
             gain.connect(audioCtx.destination);
             
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
             gain.gain.setValueAtTime(1, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
             
@@ -281,7 +262,35 @@
             osc.stop(audioCtx.currentTime + 0.5);
         }
 
-        // 4. ระบบออกเสียงพูดภาษาไทย
+        // 4. ระบบสังเคราะห์เสียงเชียร์เมื่อหมดเวลา (Fanfare Cheer Sound)
+        function playCheerSound() {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            // โน้ตเพลงเฉลิมฉลอง (C5, E5, G5, C6)
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            const now = audioCtx.currentTime;
+
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'triangle'; // เสียงฟลุต/ทรัมเป็ตเฉลิมฉลอง
+                osc.frequency.setValueAtTime(freq, now + (index * 0.12));
+
+                gain.gain.setValueAtTime(0, now + (index * 0.12));
+                gain.gain.linearRampToValueAtTime(0.8, now + (index * 0.12) + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + (index * 0.12) + 0.4);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now + (index * 0.12));
+                osc.stop(now + (index * 0.12) + 0.4);
+            });
+        }
+
+        // 5. ระบบออกเสียงพูดภาษาไทย
         function speakThai(text) {
             window.speechSynthesis.cancel();
 
@@ -296,7 +305,7 @@
             window.speechSynthesis.speak(utterance);
         }
 
-        // 5. ระบบ LocalStorage (จำค่าการใช้งานล่าสุด)
+        // 6. LocalStorage
         function saveSettings(minutes, interval) {
             localStorage.setItem('timer_minutes', minutes);
             localStorage.setItem('timer_interval', interval);
@@ -311,15 +320,13 @@
             }
         }
 
-        // 6. ระบบป้องกันหน้าจอดับ (Screen Wake Lock)
+        // 7. Screen Wake Lock
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
                 }
-            } catch (err) { 
-                console.log('Wake Lock Error:', err); 
-            }
+            } catch (err) { console.log('Wake Lock Error:', err); }
         }
 
         function releaseWakeLock() {
@@ -335,7 +342,7 @@
             document.getElementById('round-text').innerText = `รอบที่ ${roundCount}`;
         }
 
-        // 7. การควบคุม Timer และ Event Handlers
+        // 8. การควบคุม Timer
         function startTimer() {
             const minsInput = document.getElementById('input-minutes').value;
             const intervalInput = document.getElementById('input-interval').value;
@@ -373,22 +380,29 @@
                 if (isPaused) return;
 
                 currentSeconds--;
-                const elapsed = totalSeconds - currentSeconds;
+                updateDisplay();
 
+                // ป้องกันการชนกัน: ถ้าเวลาหมด ให้ทำงานเงื่อนไขหมดเวลาแล้วหยุดทันที
+                if (currentSeconds <= 0) {
+                    stopTimer();
+                    playCheerSound(); // เล่นเสียงดนตรีเชียร์ฉลอง
+                    setTimeout(() => {
+                        speakThai("หมดเวลาแล้วครับ เก่งมากครับ!");
+                    }, 600);
+                    return;
+                }
+
+                // การเตือนย่อยระหว่างทาง (จะไม่ทำงานเมื่อ currentSeconds <= 0)
+                const elapsed = totalSeconds - currentSeconds;
                 if (elapsed > 0 && elapsed % intervalLimit === 0) {
                     roundCount++;
+                    updateDisplay();
                     playBeep();
                     setTimeout(() => {
                         speakThai(`${intervalLimit} วินาที ครั้งที่ ${roundCount}`);
                     }, 600);
                 }
 
-                updateDisplay();
-
-                if (currentSeconds <= 0) {
-                    stopTimer();
-                    speakThai("หมดเวลาแล้วครับ");
-                }
             }, 1000);
         }
 
