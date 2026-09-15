@@ -342,6 +342,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedSettings();
             initVoice();
+            attachRealtimeListeners();
         });
 
         // 1. Theme Management (Dark / Light Mode)
@@ -364,7 +365,7 @@
             }
         }
 
-        // 2. Minimum Time Validation (< 10 seconds)
+        // 2. Real-time Event Listeners & Minimum Time Validation
         function calculateTotalSeconds() {
             const timeVal = parseFloat(document.getElementById('input-time').value) || 0;
             const unit = document.getElementById('select-unit').value;
@@ -375,15 +376,29 @@
         }
 
         function validateMinimum() {
+            const timeVal = document.getElementById('input-time').value.trim();
             const secs = calculateTotalSeconds();
             const banner = document.getElementById('warning-banner');
-            if (secs > 0 && secs < 10) {
+
+            // แสดงคำเตือนเฉพาะเมื่อมีการระบุตัวเลขและคำนวณแล้วได้มากกว่า 0 แต่น้อยกว่า 10 วินาที
+            if (timeVal !== '' && secs > 0 && secs < 10) {
                 banner.style.display = 'block';
                 return false;
             } else {
+                // ซ่อนคำเตือนอัตโนมัติทันทีหากเวลา >= 10 วินาที หรือช่องว่างเปล่า
                 banner.style.display = 'none';
                 return true;
             }
+        }
+
+        function attachRealtimeListeners() {
+            const inputTime = document.getElementById('input-time');
+            const selectUnit = document.getElementById('select-unit');
+
+            // ดักจับการพิมพ์ เปลี่ยนแปลง หรือการกดลูกศรขึ้นลงในช่อง Input
+            inputTime.addEventListener('input', validateMinimum);
+            inputTime.addEventListener('change', validateMinimum);
+            selectUnit.addEventListener('change', validateMinimum);
         }
 
         // 3. Voice Engine Initialization
