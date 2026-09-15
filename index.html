@@ -1,20 +1,41 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <!-- Screen Responsive Meta Tags -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>นาฬิกาจับเวลาเฉพาะกิจ</title>
     <style>
         :root {
-            --primary: #007AFF;
             --bg: #F2F2F7;
             --card-bg: #FFFFFF;
             --text: #1C1C1E;
+            --text-sub: #8E8E93;
+            --border: #C7C7CC;
+            --input-bg: #FAFAFA;
+            --primary: #007AFF;
             --yellow-warm: #FFCC00;
-            --yellow-hover: #E6B800;
             --danger: #FF3B30;
+            --danger-bg: #FFE5E5;
             --success: #34C759;
+            --circle-btn-bg: #E5E5EA;
+            --shadow: rgba(0, 0, 0, 0.08);
+        }
+
+        /* Dark Mode CSS Variables */
+        [data-theme="dark"] {
+            --bg: #000000;
+            --card-bg: #1C1C1E;
+            --text: #FFFFFF;
+            --text-sub: #8E8E93;
+            --border: #38383A;
+            --input-bg: #2C2C2E;
+            --primary: #0A84FF;
+            --yellow-warm: #FFD60A;
+            --danger: #FF453A;
+            --danger-bg: #3A100E;
+            --success: #30D158;
+            --circle-btn-bg: #2C2C2E;
+            --shadow: rgba(255, 255, 255, 0.05);
         }
 
         body {
@@ -29,6 +50,31 @@
             margin: 0;
             padding: 16px;
             box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Theme Toggle Button Top-Center */
+        .theme-toggle-container {
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .btn-theme-toggle {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .card {
@@ -37,12 +83,12 @@
             padding: 24px;
             width: 100%;
             max-width: 360px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 16px var(--shadow);
             position: relative;
             box-sizing: border-box;
+            transition: background-color 0.3s;
         }
 
-        /* ปุ่ม X วงกลมขนาดกำลังดีสำหรับทุกขนาดนิ้ว */
         .btn-close-circle {
             position: absolute;
             top: 16px;
@@ -50,9 +96,9 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background-color: #E5E5EA;
+            background-color: var(--circle-btn-bg);
             border: none;
-            color: #8E8E93;
+            color: var(--text-sub);
             font-size: 20px;
             font-weight: bold;
             display: flex;
@@ -63,11 +109,6 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .btn-close-circle:active {
-            background-color: #D1D1D6;
-            color: #000000;
-        }
-
         h1 {
             font-size: 20px;
             margin: 0 0 20px 0;
@@ -75,7 +116,7 @@
         }
 
         .timer-display {
-            font-size: 64px;
+            font-size: 56px;
             font-weight: bold;
             font-family: -apple-system-font, "SF Pro Display", monospace;
             color: var(--primary);
@@ -86,7 +127,7 @@
 
         .sub-text {
             font-size: 16px;
-            color: #8E8E93;
+            color: var(--text-sub);
             text-align: center;
             margin-bottom: 10px;
         }
@@ -101,23 +142,40 @@
             margin-bottom: 6px;
             font-size: 14px;
             font-weight: 500;
-            color: #3A3A3C;
+            color: var(--text);
         }
 
-        input {
-            width: 100%;
+        .input-with-select {
+            display: flex;
+            gap: 8px;
+        }
+
+        input, select {
             padding: 14px;
-            border: 1px solid #C7C7CC;
+            border: 1px solid var(--border);
             border-radius: 12px;
-            font-size: 18px;
+            font-size: 16px;
             box-sizing: border-box;
             outline: none;
-            background-color: #FAFAFA;
+            background-color: var(--input-bg);
+            color: var(--text);
         }
 
-        input:focus {
-            border-color: var(--primary);
-            background-color: #FFFFFF;
+        input { flex: 1; width: 100%; }
+        select { width: 110px; cursor: pointer; }
+
+        .warning-banner {
+            display: none;
+            background-color: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.4;
+            margin-bottom: 16px;
+            text-align: center;
+            font-weight: 500;
         }
 
         .button-stack {
@@ -128,7 +186,7 @@
             margin-top: 10px;
         }
 
-        button {
+        button.btn-action {
             width: 100%;
             padding: 16px;
             border: none;
@@ -140,58 +198,135 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        button:active {
-            opacity: 0.8;
-        }
+        button.btn-action:active { opacity: 0.8; }
 
         .btn-start { background-color: var(--success); color: white; }
         .btn-pause { background-color: var(--yellow-warm); color: #1C1C1E; }
         .btn-stop { background-color: var(--danger); color: white; }
 
-        #setup-view, #timer-view {
+        /* Popup Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            padding: 24px;
             width: 100%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .modal-body {
+            font-size: 15px;
+            color: var(--text-sub);
+            margin-bottom: 20px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background-color: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            position: absolute;
+            bottom: 0; left: 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--primary);
+            width: 100%;
+            transition: width 0.1s linear;
         }
     </style>
-    <!-- iOS PWA Specific Meta Tags -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TimerApp">
-<link rel="apple-touch-icon" href="icon-192.png">
-
-<!-- Web App Manifest Reference -->
-<link rel="manifest" href="manifest.json">
 </head>
 <body>
 
+    <!-- Theme Toggle Positioned Top-Center -->
+    <div class="theme-toggle-container">
+        <button class="btn-theme-toggle" onclick="toggleTheme()" id="btn-theme">
+            <span id="theme-icon">☀️</span>
+            <span id="theme-text" style="font-size: 14px;">White Mode</span>
+        </button>
+    </div>
+
     <div class="card">
-        <!-- หน้าจอตั้งค่า -->
+        <!-- Setup View -->
         <div id="setup-view">
             <h1>นาฬิกาจับเวลาเฉพาะกิจ</h1>
-            <div class="input-group">
-                <label for="input-minutes">เวลารวม (นาที):</label>
-                <input type="number" id="input-minutes" min="1" placeholder="ระบุนาที">
+
+            <div class="warning-banner" id="warning-banner">
+                การตั้งเวลาที่น้อยกว่า 10 วินาทีลงไปจะเป็นการสร้างความรำคาญและมลพิษทางเสียงโดยรอบที่ไม่จำเป็น
             </div>
+
+            <div class="input-group">
+                <label for="input-time">เวลารวม:</label>
+                <div class="input-with-select">
+                    <input type="number" id="input-time" min="1" placeholder="ระบุเวลา" oninput="validateMinimum()">
+                    <select id="select-unit" onchange="validateMinimum()">
+                        <option value="sec">วินาที</option>
+                        <option value="min" selected>นาที</option>
+                        <option value="hr">ชั่วโมง</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="input-group">
                 <label for="input-interval">เตือนย่อยทุกๆ (วินาที):</label>
                 <input type="number" id="input-interval" min="1" placeholder="ระบุวินาที">
             </div>
-            <button class="btn-start" onclick="startTimer()">เริ่มจับเวลา</button>
+
+            <button class="btn-action btn-start" onclick="startTimer()">เริ่มจับเวลา</button>
         </div>
 
-        <!-- หน้าจอนับถอยหลัง -->
+        <!-- Timer Running View -->
         <div id="timer-view" style="display: none;">
             <button class="btn-close-circle" onclick="stopTimer()" aria-label="ปิด">✕</button>
             <div class="sub-text" id="round-text">รอบที่ 0</div>
-            <div class="timer-display" id="time-display">00:00</div>
+            <div class="timer-display" id="time-display">00:00:00</div>
             
             <div class="button-stack">
-                <button id="btn-pause-resume" class="btn-pause" onclick="togglePause()">พักเวลา</button>
-                <button class="btn-stop" onclick="stopTimer()">ยกเลิก / ตั้งค่าใหม่</button>
+                <button id="btn-pause-resume" class="btn-action btn-pause" onclick="togglePause()">พักเวลา</button>
+                <button class="btn-action btn-stop" onclick="stopTimer()">ยกเลิก / ตั้งค่าใหม่</button>
             </div>
         </div>
     </div>
 
-  <script>
+    <!-- Finish Modal Popup -->
+    <div class="modal-overlay" id="finish-modal">
+        <div class="modal-content">
+            <div style="font-size: 40px; margin-bottom: 8px;">🎉</div>
+            <div class="modal-title">เวลาหมดแล้ว!</div>
+            <div class="modal-body">เก่งมากครับ ทำกิจกรรมเสร็จสิ้นแล้ว</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="popup-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
         let timerInterval = null;
         let totalSeconds = 0;
         let currentSeconds = 0;
@@ -202,13 +337,56 @@
 
         let audioCtx = null;
         let thaiVoice = null;
+        let currentTheme = 'light';
 
         window.addEventListener('DOMContentLoaded', () => {
             loadSavedSettings();
             initVoice();
         });
 
-        // 1. ระบบจัดการ Voice แบบ Cross-Platform
+        // 1. Theme Management (Dark / Light Mode)
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            applyTheme(currentTheme);
+            localStorage.setItem('timer_theme', currentTheme);
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            if (theme === 'dark') {
+                icon.innerText = '🌙';
+                text.innerText = 'Dark Mode';
+            } else {
+                icon.innerText = '☀️';
+                text.innerText = 'White Mode';
+            }
+        }
+
+        // 2. Minimum Time Validation (< 10 seconds)
+        function calculateTotalSeconds() {
+            const timeVal = parseFloat(document.getElementById('input-time').value) || 0;
+            const unit = document.getElementById('select-unit').value;
+            if (unit === 'sec') return timeVal;
+            if (unit === 'min') return timeVal * 60;
+            if (unit === 'hr') return timeVal * 3600;
+            return 0;
+        }
+
+        function validateMinimum() {
+            const secs = calculateTotalSeconds();
+            const banner = document.getElementById('warning-banner');
+            if (secs > 0 && secs < 10) {
+                banner.style.display = 'block';
+                return false;
+            } else {
+                banner.style.display = 'none';
+                return true;
+            }
+        }
+
+        // 3. Voice Engine Initialization
         function initVoice() {
             const updateVoices = () => {
                 const voices = window.speechSynthesis.getVoices();
@@ -222,7 +400,7 @@
             }
         }
 
-        // 2. ปลดล็อกระบบเสียงสำหรับ iOS Safari
+        // 4. iOS Audio Unlocking
         function unlockIOSAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -243,7 +421,7 @@
             window.speechSynthesis.speak(silentUtterance);
         }
 
-        // 3. ระบบเสียงสัญญาณ Beep เตือนย่อย
+        // 5. Sound Effects
         function playBeep() {
             if (!audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -262,12 +440,10 @@
             osc.stop(audioCtx.currentTime + 0.5);
         }
 
-        // 4. ระบบสังเคราะห์เสียงเชียร์เมื่อหมดเวลา (Fanfare Cheer Sound)
         function playCheerSound() {
             if (!audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            // โน้ตเพลงเฉลิมฉลอง (C5, E5, G5, C6)
             const notes = [523.25, 659.25, 783.99, 1046.50];
             const now = audioCtx.currentTime;
 
@@ -275,7 +451,7 @@
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 
-                osc.type = 'triangle'; // เสียงฟลุต/ทรัมเป็ตเฉลิมฉลอง
+                osc.type = 'triangle';
                 osc.frequency.setValueAtTime(freq, now + (index * 0.12));
 
                 gain.gain.setValueAtTime(0, now + (index * 0.12));
@@ -290,7 +466,6 @@
             });
         }
 
-        // 5. ระบบออกเสียงพูดภาษาไทย
         function speakThai(text) {
             window.speechSynthesis.cancel();
 
@@ -305,19 +480,28 @@
             window.speechSynthesis.speak(utterance);
         }
 
-        // 6. LocalStorage
-        function saveSettings(minutes, interval) {
-            localStorage.setItem('timer_minutes', minutes);
-            localStorage.setItem('timer_interval', interval);
+        // 6. LocalStorage Persistence
+        function saveSettings(timeVal, unitVal, intervalVal) {
+            localStorage.setItem('timer_value', timeVal);
+            localStorage.setItem('timer_unit', unitVal);
+            localStorage.setItem('timer_interval', intervalVal);
         }
 
         function loadSavedSettings() {
-            const savedMins = localStorage.getItem('timer_minutes');
+            const savedTheme = localStorage.getItem('timer_theme') || 'light';
+            currentTheme = savedTheme;
+            applyTheme(currentTheme);
+
+            const savedTime = localStorage.getItem('timer_value');
+            const savedUnit = localStorage.getItem('timer_unit');
             const savedInterval = localStorage.getItem('timer_interval');
-            if (savedMins && savedInterval) {
-                document.getElementById('input-minutes').value = savedMins;
+
+            if (savedTime && savedUnit && savedInterval) {
+                document.getElementById('input-time').value = savedTime;
+                document.getElementById('select-unit').value = savedUnit;
                 document.getElementById('input-interval').value = savedInterval;
             }
+            validateMinimum();
         }
 
         // 7. Screen Wake Lock
@@ -336,29 +520,56 @@
         }
 
         function updateDisplay() {
-            const m = Math.floor(currentSeconds / 60).toString().padStart(2, '0');
+            const h = Math.floor(currentSeconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((currentSeconds % 3600) / 60).toString().padStart(2, '0');
             const s = (currentSeconds % 60).toString().padStart(2, '0');
-            document.getElementById('time-display').innerText = `${m}:${s}`;
+            
+            document.getElementById('time-display').innerText = `${h}:${m}:${s}`;
             document.getElementById('round-text').innerText = `รอบที่ ${roundCount}`;
         }
 
-        // 8. การควบคุม Timer
+        // 8. Auto-Closing Popup Handler
+        function showFinishModal(durationMs = 4000) {
+            const modal = document.getElementById('finish-modal');
+            const progress = document.getElementById('popup-progress');
+            
+            progress.style.transition = 'none';
+            progress.style.width = '100%';
+            modal.style.display = 'flex';
+
+            setTimeout(() => {
+                progress.style.transition = `width ${durationMs}ms linear`;
+                progress.style.width = '0%';
+            }, 50);
+
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, durationMs + 100);
+        }
+
+        // 9. Main Controller Functions
         function startTimer() {
-            const minsInput = document.getElementById('input-minutes').value;
-            const intervalInput = document.getElementById('input-interval').value;
+            const timeVal = document.getElementById('input-time').value;
+            const unitVal = document.getElementById('select-unit').value;
+            const intervalVal = document.getElementById('input-interval').value;
 
-            const mins = parseInt(minsInput);
-            intervalLimit = parseInt(intervalInput);
+            totalSeconds = calculateTotalSeconds();
+            intervalLimit = parseInt(intervalVal);
 
-            if (isNaN(mins) || isNaN(intervalLimit) || mins <= 0 || intervalLimit <= 0) {
-                alert("กรุณาระบุเวลารวมและช่วงเวลาเตือนให้ถูกต้อง");
+            if (totalSeconds < 10) {
+                document.getElementById('warning-banner').style.display = 'block';
+                alert("การตั้งเวลาต้องไม่น้อยกว่า 10 วินาทีครับ");
+                return;
+            }
+
+            if (isNaN(intervalLimit) || intervalLimit <= 0) {
+                alert("กรุณาระบุช่วงเวลาเตือนย่อยให้ถูกต้อง");
                 return;
             }
 
             unlockIOSAudio();
-            saveSettings(minsInput, intervalInput);
+            saveSettings(timeVal, unitVal, intervalVal);
 
-            totalSeconds = mins * 60;
             currentSeconds = totalSeconds;
             roundCount = 0;
             isPaused = false;
@@ -382,17 +593,16 @@
                 currentSeconds--;
                 updateDisplay();
 
-                // ป้องกันการชนกัน: ถ้าเวลาหมด ให้ทำงานเงื่อนไขหมดเวลาแล้วหยุดทันที
                 if (currentSeconds <= 0) {
                     stopTimer();
-                    playCheerSound(); // เล่นเสียงดนตรีเชียร์ฉลอง
+                    playCheerSound();
+                    showFinishModal(4000);
                     setTimeout(() => {
                         speakThai("หมดเวลาแล้วครับ เก่งมากครับ!");
                     }, 600);
                     return;
                 }
 
-                // การเตือนย่อยระหว่างทาง (จะไม่ทำงานเมื่อ currentSeconds <= 0)
                 const elapsed = totalSeconds - currentSeconds;
                 if (elapsed > 0 && elapsed % intervalLimit === 0) {
                     roundCount++;
