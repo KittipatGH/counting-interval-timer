@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>นาฬิกาจับเวลาเฉพาะกิจ</title>
+    <style>
+        :root { --primary: #007AFF; --bg: #F2F2F7; --text: #1C1C1E; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        h1 { font-size: 24px; margin-bottom: 20px; }
+        .timer-display { font-size: 80px; font-weight: bold; font-family: monospace; color: var(--primary); margin: 20px 0; font-variant-numeric: tabular-nums; }
+        .sub-text { font-size: 18px; color: #8E8E93; margin-bottom: 20px; }
+        .input-group { width: 100%; max-width: 320px; margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input { width: 100%; padding: 12px; border: 1px solid #C7C7CC; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; max-width: 320px; padding: 16px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; color: white; margin-top: 10px; cursor: pointer; transition: opacity 0.2s; }
+        button:active { opacity: 0.7; }
+        .btn-start { background-color: #34C759; }
+        .btn-stop { background-color: #FF3B30; }
+        #setup-view, #timer-view { width: 100%; display: flex; flex-direction: column; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-view">
+        <h1>นาฬิกาจับเวลา</h1>
+        <div class="input-group">
+            <label>เวลารวม (นาที):</label>
+            <input type="number" id="input-minutes" value="25" min="1">
+        </div>
+        <div class="input-group">
+            <label>เตือนทุกๆ (วินาที):</label>
+            <input type="number" id="input-interval" value="30" min="5">
+        </div>
+        <button class="btn-start" onclick="startTimer()">เริ่มจับเวลา</button>
+    </div>
+
+    <div id="timer-view" style="display: none;">
+        <div class="sub-text" id="round-text">รอบที่ 0</div>
+        <div class="timer-display" id="time-display">25:00</div>
+        <button class="btn-stop" onclick="stopTimer()">ยกเลิก</button>
+    </div>
+
+    <script>
+        let timerInterval = null;
+        let totalSeconds = 0;
+        let currentSeconds = 0;
+        let intervalLimit = 0;
+        let roundCount = 0;
+        let wakeLock = null;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // 1. สร้างเสียง "ติ๊ง" ด้วย Web Audio API (ไม่ต้องใช้ไฟล์)
+        function playBeep() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // 2. ออกเสียงพูดภาษาไทย
+        function speakThai(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'th-TH';
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 3. ป้องกันหน้าจอดับ (Screen Wake Lock)
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log('Wake Lock Error:', err);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => wakeLock = null);
+            }
+        }
+
+        function updateDisplay() {
+            const m = Math.floor(currentSeconds / 60).toString().padStart(2, '0');
+            const s = (currentSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('time-display').innerText = `${m}:${s}`;
+            document.getElementById('round-text').innerText = `รอบที่ ${roundCount}`;
+        }
+
+        function startTimer() {
+            const mins = parseInt(document.getElementById('input-minutes').value);
+            intervalLimit = parseInt(document.getElementById('input-interval').value);
+            
+            if (isNaN(mins) || isNaN(intervalLimit) || mins <= 0) return;
+
+            // ปลดล็อกระบบเสียงบน iOS Safari (ต้องทำตอน User กดปุ่ม)
+            playBeep(); 
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+
+            totalSeconds = mins * 60;
+            currentSeconds = totalSeconds;
+            roundCount = 0;
+
+            document.getElementById('setup-view').style.display = 'none';
+            document.getElementById('timer-view').style.display = 'flex';
+            updateDisplay();
+
+            requestWakeLock(); // ขอเปิดจอค้าง
+
+            timerInterval = setInterval(() => {
+                currentSeconds--;
+                const elapsed = totalSeconds - currentSeconds;
+
+                // เช็คการเตือนย่อย
+                if (elapsed > 0 && elapsed % intervalLimit === 0) {
+                    roundCount++;
+                    playBeep();
+                    setTimeout(() => {
+                        speakThai(`${intervalLimit} วินาที ครั้งที่ ${roundCount}`);
+                    }, 600); // ดีเลย์ให้เสียงติ๊งจบก่อนพูด
+                }
+
+                updateDisplay();
+
+                // หมดเวลา
+                if (currentSeconds <= 0) {
+                    stopTimer();
+                    speakThai("หมดเวลาแล้วครับ");
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            releaseWakeLock();
+            document.getElementById('setup-view').style.display = 'flex';
+            document.getElementById('timer-view').style.display = 'none';
+            window.speechSynthesis.cancel(); // หยุดพูดถ้ากำลังพูดอยู่
+        }
+    </script>
+</body>
+</html>
